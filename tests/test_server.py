@@ -14,14 +14,37 @@ from mcp.client.stdio import stdio_client
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from sidecar.server import normalize_key  # noqa: E402
+from sidecar.input_backend import XdotoolBackend, parse_combo  # noqa: E402
+from sidecar.files import FileAccessError, FileScope  # noqa: E402
 
 
-def test_normalize_key():
-    assert normalize_key("Enter") == "Return"
-    assert normalize_key("Ctrl+Shift+T") == "ctrl+shift+T"
-    assert normalize_key("cmd + l") == "super+l"
-    assert normalize_key("alt+F4") == "alt+F4"
+def test_parse_combo():
+    assert parse_combo("Enter") == ["return"]
+    assert parse_combo("Ctrl+Shift+T") == ["ctrl", "shift", "T"]
+    assert parse_combo("cmd + l") == ["super", "l"]
+    assert parse_combo("alt+F4") == ["alt", "F4"]
+
+
+def test_xdotool_chord_mapping():
+    b = XdotoolBackend.__new__(XdotoolBackend)  # skip the which() check
+    assert b._chord("Enter") == "Return"
+    assert b._chord("Ctrl+Shift+T") == "ctrl+shift+T"
+    assert b._chord("cmd+l") == "super+l"
+    assert b._chord("alt+F4") == "alt+F4"
+
+
+def test_file_scope_confinement(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "notes.txt").write_text("hello")
+    scope = FileScope(root)
+    assert scope.read_file("notes.txt") == "hello"
+    assert "notes.txt" in scope.list_dir(".")
+    scope.write_file("sub/new.txt", "x")
+    assert (root / "sub" / "new.txt").read_text() == "x"
+    for bad in ("../outside.txt", "/etc/passwd", "sub/../../escape"):
+        with pytest.raises(FileAccessError):
+            scope.read_file(bad)
 
 
 needs_x = pytest.mark.skipif(
@@ -37,7 +60,8 @@ def test_drives_a_private_display(tmp_path):
     async def run():
         params = StdioServerParameters(
             command=sys.executable,
-            args=["-m", "sidecar.server", "--start-xvfb", "--display", ":97"],
+            args=["-m", "sidecar.server", "--start-xvfb", "--display", ":97",
+                  "--file-root", str(tmp_path)],
             cwd=str(ROOT),
             env={**os.environ, "DISPLAY": ""},
         )
@@ -45,7 +69,11 @@ def test_drives_a_private_display(tmp_path):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 names = {t.name for t in (await session.list_tools()).tools}
-                assert {"screenshot", "click", "type_text", "key", "launch"} <= names
+                assert {"screenshot", "click", "type_text", "key", "launch",
+                        "about", "list_dir", "read_file", "write_file"} <= names
+
+                about = await session.call_tool("about", {})
+                assert "isolated" in about.content[0].text
 
                 shot = await session.call_tool("screenshot", {})
                 assert "1280x800" in shot.content[0].text
@@ -65,6 +93,14 @@ def test_drives_a_private_display(tmp_path):
 
                 pos = await session.call_tool("cursor_position", {})
                 assert pos.content[0].text == "(100, 100)"
+
+                await session.call_tool(
+                    "write_file", {"path": "roundtrip.txt", "content": "via mcp"}
+                )
+                rf = await session.call_tool("read_file", {"path": "roundtrip.txt"})
+                assert rf.content[0].text == "via mcp"
+                esc = await session.call_tool("read_file", {"path": "../../../etc/passwd"})
+                assert esc.is_error
 
                 bad = await session.call_tool("click", {"x": 5000, "y": 5})
                 assert bad.is_error
