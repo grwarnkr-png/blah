@@ -1,0 +1,5 @@
+{
+  "name": "sidecar-desktop",
+  "version": "0.1.0",
+  "description": "Gives Claude its own virtual desktop (screen, mouse, keyboard) so it can use GUI apps without taking over yours."
+}

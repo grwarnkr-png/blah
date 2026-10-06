@@ -1,0 +1,22 @@
+services:
+  sidecar:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: sidecar-desktop
+    container_name: sidecar-desktop
+    restart: unless-stopped
+    shm_size: "2gb"  # Firefox crashes with Docker's 64 MB default
+    environment:
+      WIDTH: "1280"
+      HEIGHT: "800"
+      VIEW_ONLY: "0"  # set to 1 to stop the viewer from sending input
+    ports:
+      # Bound to localhost only: nothing on your network can reach these.
+      - "127.0.0.1:8765:8765"  # MCP endpoint for Claude Code
+      - "127.0.0.1:6080:6080"  # watch at http://localhost:6080/vnc.html
+    volumes:
+      - sidecar-home:/home/claude  # keeps browser logins etc. between restarts
+
+volumes:
+  sidecar-home:

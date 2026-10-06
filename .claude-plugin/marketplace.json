@@ -1,0 +1,8 @@
+{
+  "name": "sidecar-desktop",
+  "owner": { "name": "grwarnkr-png" },
+  "description": "Sidecar desktop plugin for Claude Code",
+  "plugins": [
+    { "name": "sidecar-desktop", "source": "./" }
+  ]
+}
