@@ -48,7 +48,16 @@ In the VM, install:
 (You don't need Claude Code inside the VM — Claude runs on your host and
 connects in.)
 
-## 4. Wire it up
+## 4. Wire it up (once)
+
+**Inside the VM**, from the project folder, run this one script:
+
+```bat
+setup\vm-autostart.bat
+```
+
+It installs the desktop server and makes it launch **automatically (hidden) every
+time the VM starts**. You never run anything in the VM again.
 
 **On your host PC** (not the VM), from the project folder:
 
@@ -56,28 +65,29 @@ connects in.)
 setup\vm-host.bat "Exact VM Name"
 ```
 
-That forwards `localhost:8765` on your PC into the VM and points Claude Code at
-it.
+It adds the loopback port-forward (saved permanently on the VM) and connects
+Claude Code. If you installed the sidecar-desktop **plugin**, the Claude
+connection is already done — this step then only adds the port-forward, which
+you can also do once in VirtualBox (Settings ▸ Network ▸ Advanced ▸ Port
+Forwarding: `127.0.0.1:8765 → 8765`).
 
-**Inside the VM**, from the project folder:
+That's the entire setup. From now on it's just the two steps below.
 
-```bat
-setup\vm-guest.bat
-```
+## 5. Everyday use
 
-Leave that window open — it's the desktop server. The first run installs its
-dependencies.
+1. **Start the VM.** The desktop server comes up on its own.
+2. **Use Claude on your host** — ask it to use the sidecar desktop, e.g. *"Open
+   Edge in your sidecar desktop and sign in to my email."* It drives the **VM**,
+   not your PC. Snap the VirtualBox window to half your screen (Win+← / Win+→) to
+   watch and take over when needed (e.g. a login or 2FA, after which Claude
+   continues in that signed-in session).
 
-## 5. Use it
+Nothing but the plugin is needed on Claude's side. Your real mouse, keyboard and
+screen stay entirely yours the whole time.
 
-1. Start a **new** Claude Code session on your host.
-2. Ask it to use the sidecar desktop, e.g. *"Open Edge in your sidecar desktop
-   and sign in to my email"* — it drives the **VM**, not your PC.
-3. Snap the VirtualBox window to half your screen (Win+← / Win+→) so you can
-   watch and take over when needed — for example to do a login or 2FA, after
-   which Claude continues in that signed-in session.
-
-Your real mouse, keyboard and screen stay entirely yours the whole time.
+**Want to skip even starting the VM?** Put a shortcut to the VM in your host's
+`shell:startup` so it boots with Windows, or (advanced) use VirtualBox's
+autostart service.
 
 ## Notes
 
@@ -88,8 +98,10 @@ Your real mouse, keyboard and screen stay entirely yours the whole time.
   network. It can read/write files under the VM user's home folder (not your
   host's). Treat the VM's browser like any automated one — only sign in to
   accounts you're comfortable with Claude using.
-- **Autostart (optional):** to skip step 4's guest command each boot, put a
-  shortcut to `setup\vm-guest.bat` in the VM's `shell:startup` folder.
-- If Claude's tools show a connection error, make sure the VM is running,
-  `vm-guest.bat` is still open in it, and you ran `vm-host.bat` with the correct
-  VM name.
+- **To turn autostart off**, delete `sidecar-desktop.vbs` from the VM's
+  `shell:startup` folder.
+- If Claude's tools show a connection error, make sure the VM is running and that
+  you ran `vm-host.bat` once (or added the port-forward in VirtualBox). The guest
+  server itself needs no window open — it runs hidden in the background.
+- `setup\vm-guest.bat` still exists if you ever want to run the server in a
+  visible window (for debugging) instead of via autostart.
