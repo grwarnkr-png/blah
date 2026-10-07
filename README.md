@@ -1,110 +1,101 @@
 # Sidecar Desktop
 
-Give Claude Code its **own** screen, mouse and keyboard so it can drive GUI
-apps (a browser, a desktop app) **while you keep using your computer**.
+Give Claude Code its **own** computer — a screen, mouse, keyboard and local
+files — so it can drive GUI apps and browse the web **while you keep using your
+own machine**.
 
-The whole point: Claude's cursor is *not* your cursor. It works on a separate
-display that you can watch in a browser tab. Nothing it clicks or types touches
-your real mouse, keyboard, or window focus — so it never fights you for control.
+It runs in one of two modes you switch between per task:
 
-```
- you (untouched)                   Claude's sidecar desktop
- ┌──────────────────────┐          ┌───────────────────────────────┐
- │ your mouse, keyboard │          │ its own screen (1280x800)     │
- │ your windows         │   MCP    │ its own browser & apps        │
- │ Claude Code ─────────┼─────────▶│ mouse/keyboard it controls    │
- │ browser tab (watch) ◀┼──────────┤ viewer on localhost:6080      │
- └──────────────────────┘          └───────────────────────────────┘
-```
+- **Isolated** — Claude gets its *own* desktop with its *own* cursor. Your real
+  screen, mouse and keyboard stay entirely yours; you watch it in a browser tab
+  and can snap that to half your screen. (Trade-off: a fresh desktop, so it
+  can't see your already-open windows.)
+- **Native** — Claude drives your *real* desktop, using your actual open windows
+  and installed apps. (Trade-off: one desktop means one cursor, so while it's
+  clicking it shares your mouse.)
 
-## Quick start
-
-### Linux
-
-```bash
-git clone https://github.com/grwarnkr-png/blah.git sidecar-desktop
-cd sidecar-desktop
-./setup/start.sh
-```
-
-That installs what it needs, wires the tools into Claude Code for every
-session, and roots file access at your home folder. Claude gets its own display
-on your machine — so it can run **your installed apps** and read **your files** —
-without touching your cursor. Watch at <http://localhost:6080/vnc.html> while a
-session is running.
+## Install
 
 ### Windows
 
-Double-click **`setup\start.bat`** (needs [Docker
-Desktop](https://www.docker.com/products/docker-desktop/) running). Windows
-can't hand Claude an independent on-screen cursor without a second login
-session, so the no-conflict version runs a private **Linux** desktop in a
-container that you watch at <http://localhost:6080/vnc.html>. Your real mouse
-and keyboard stay yours. (Trade-off: it runs its own Linux browser/apps, not
-your installed Windows programs — see [below](#windows-native-apps).)
+1. **Isolated** (recommended): install [Docker
+   Desktop](https://www.docker.com/products/docker-desktop/), start it, then
+   double-click **`setup\start.bat`**. Watch at
+   <http://localhost:6080/vnc.html> and snap it to half your screen.
+2. **Native** (use your real apps/windows): double-click **`setup\native.bat`**.
 
 ### macOS
 
-Same reasoning as Windows — run the Docker desktop:
+1. **Isolated:** `docker compose up -d --build`, then
+   `claude mcp add --transport http --scope user sidecar-desktop http://127.0.0.1:8765/mcp`
+2. **Native:** `./setup/native.sh` (macOS will ask you to grant Accessibility +
+   Screen Recording permission on first run).
 
-```bash
-docker compose up -d --build        # then open http://localhost:6080/vnc.html
-claude mcp add --transport http --scope user sidecar-desktop http://127.0.0.1:8765/mcp
+### Linux
+
+Install it as a Claude Code **plugin** (needs Docker running for the isolated
+desktop):
+
+```
+/plugin marketplace add grwarnkr-png/blah
+/plugin install sidecar-desktop@sidecar-desktop
+docker compose up -d --build
 ```
 
-Then just ask, e.g. *"Use your sidecar desktop to open Firefox, find the latest
-release notes for X and summarize them into ~/notes/x.md."*
+Or, for an independent display **without** Docker (uses your installed apps,
+keeps your cursor), run the installer, which also sets up native mode:
 
-## What Claude gets
+```bash
+git clone https://github.com/grwarnkr-png/blah.git sidecar-desktop
+cd sidecar-desktop && ./setup/start.sh      # isolated display + viewer
+./setup/native.sh                            # optional: real-desktop mode
+```
 
-**Desktop**
+After installing, start a new Claude session and just ask, e.g. *"Use your
+sidecar desktop to open Firefox, find the latest release notes for X, and save a
+summary to ~/notes/x.md."* Approve the `sidecar-desktop` tools when prompted, or
+allowlist them so Claude can work uninterrupted.
 
-| Tool | What it does |
-|---|---|
-| `about` | which mode it's in, screen size, file root |
-| `screenshot` | PNG of the whole screen |
-| `click` | left/middle/right click; `clicks: 2` double-clicks |
-| `move_mouse` | hover without clicking |
-| `drag` | press, move, release |
-| `scroll` | mouse wheel at a point |
-| `type_text` | type into the focused window |
-| `key` | key or chord: `enter`, `ctrl+l`, `ctrl+shift+t`, `alt+F4` |
-| `cursor_position` | where its pointer is |
-| `launch` | start a program, e.g. `firefox https://…` |
-| `wait` | pause for loading, then look |
+## What it can and can't do
 
-**Files** (confined to one root — your home folder by default)
+| | Isolated | Native |
+|---|---|---|
+| Your real cursor/screen | untouched — you keep all of it | shared while Claude acts |
+| Your already-open windows | no (its own fresh desktop) | **yes** |
+| Your installed apps | Linux apps (Docker); your own apps on Linux `--start-xvfb` | **yes, all of them** |
+| Your files | yes (rooted at home) | yes (rooted at home) |
+| Watch in a browser | yes, localhost:6080 | — (it's your own screen) |
 
-| Tool | What it does |
-|---|---|
-| `list_dir` | list a folder under the root |
-| `read_file` | read a UTF-8 text file under the root |
-| `write_file` | write or append a text file under the root |
+**On Windows/macOS there is no mode that both uses your live windows *and*
+leaves your cursor alone** — those OSes give one cursor per login, and an
+independent second cursor sharing your real windows is Linux/X11-only. Pick
+isolated when you want zero conflict, native when you want Claude in your actual
+apps.
+
+## Tools Claude gets
+
+**Desktop:** `about`, `screenshot`, `click`, `move_mouse`, `drag`, `scroll`,
+`type_text`, `key`, `cursor_position`, `launch` (start a program), `wait`.
+
+**Files** (confined to one root, your home by default): `list_dir`, `read_file`,
+`write_file`.
 
 Action tools return a fresh screenshot by default; pass `screenshot: false` to
-skip it and chain quick actions, then look once at the end.
+chain quick actions and look once at the end. Screenshots are downscaled to a
+compact JPEG (when Pillow is installed) to keep them fast and cheap.
 
-## Modes
+## Keys
 
-| | Isolated (Docker, or Linux `--start-xvfb`) | Native real-desktop (`--native`) |
-|---|---|---|
-| Claude's cursor | separate display — never touches yours | **your real cursor** (it will move while Claude works) |
-| Conflicts with your use | no | yes — you share one cursor |
-| Your installed apps | Linux apps in the container; your own apps in Linux `--start-xvfb` | yes, all of them |
-| Recommended | **yes** | only if you specifically want Claude on your actual screen |
-
-The Linux quick-start uses the isolated display *on your own machine*, which is
-the best of both: your real files and installed apps, but an independent cursor.
-`--native` (real-desktop control via `pyautogui`) exists for the rare case you
-want Claude on your literal screen; it conflicts with your own input by design.
+Friendly names work: `enter`, `esc`, `tab`, `ctrl+l`, `ctrl+shift+t`, `alt+F4`,
+and letters/function keys directly.
 
 ## Logins and credentials
 
 In every mode Claude uses sessions **you** are signed into — it doesn't extract
-or store your credentials. When something needs a login or 2FA, do it yourself
-in the viewer window; Claude then uses the authenticated session. Don't expect
-it to type passwords it wasn't given, and treat its browser like any automated
-one: only sign in to accounts you're comfortable with it using.
+or store credentials. When a task hits a login or 2FA, do it yourself (in the
+viewer for isolated mode, or on your screen for native), and Claude continues in
+the authenticated session. Don't expect it to type passwords it wasn't given,
+and treat its browser like any automated one.
 
 ## Configuration
 
@@ -112,52 +103,25 @@ Re-run `claude mcp add` with different flags to change behavior:
 
 ```bash
 # scope file access to one folder instead of all of home
-claude mcp add --scope user sidecar-desktop -- \
-  /path/to/.venv/bin/python /path/to/sidecar/server.py \
-  --start-xvfb --viewer --file-root "$HOME/work"
-
-# turn off file tools entirely (desktop control only)
+... --start-xvfb --viewer --file-root "$HOME/work"
+# turn file tools off entirely (desktop control only)
 ... --start-xvfb --viewer --no-files
 ```
 
 Environment variables: `WIDTH`/`HEIGHT` (screen size, default 1280x800),
-`SIDECAR_SETTLE_SECONDS` (delay before the post-action screenshot),
-`SIDECAR_TYPE_DELAY_MS` (keystroke delay), `SIDECAR_FILE_ROOT` (default file root).
-
-## Install it as a plugin (Docker/HTTP mode)
-
-Instead of `claude mcp add`, you can install it as a Claude Code plugin, which
-also adds a short skill telling Claude how to use the desktop:
-
-```
-/plugin marketplace add grwarnkr-png/blah
-/plugin install sidecar-desktop@sidecar-desktop
-```
-
-The plugin points at the HTTP server on `127.0.0.1:8765` (the Docker mode), so
-run `docker compose up -d` alongside it.
+`SIDECAR_MAX_WIDTH` (screenshot downscale target, default 1366),
+`SIDECAR_SETTLE_SECONDS`, `SIDECAR_TYPE_DELAY_MS`, `SIDECAR_FILE_ROOT`.
 
 ## Security notes
 
 - Everything binds to `127.0.0.1` only — nothing on your network can reach the
-  desktop or the viewer. The HTTP endpoint also rejects non-localhost `Host`
-  headers (DNS-rebinding protection).
-- The viewer has no password; anyone with access to your machine's localhost can
-  watch or control the sidecar desktop. Set `VIEW_ONLY=1` (Docker) to make the
-  viewer watch-only.
-- File tools are confined to the root you choose; paths that resolve outside it
-  (via `..` or symlinks) are refused. Pick a narrower `--file-root` if you don't
-  want all of home reachable.
+  desktop or viewer. The HTTP endpoint rejects non-localhost `Host` headers.
+- The viewer has no password; anyone on your machine's localhost can watch or
+  control the isolated desktop. Set `VIEW_ONLY=1` (Docker) for watch-only.
+- File tools are confined to the chosen root; paths resolving outside it (via
+  `..` or symlinks) are refused. Use a narrower `--file-root` to limit reach.
 
 <a name="windows-native-apps"></a>
-## Windows-native apps
-
-Driving your *installed Windows programs* without conflicting with your own
-cursor needs a second Windows session (a separate desktop or VM), which this
-setup doesn't create. The Docker desktop covers browser and Linux-app tasks
-without that complexity. If you truly need Windows-native apps under automation,
-that's a bigger build — open an issue describing the use case.
-
 ## Development
 
 ```bash

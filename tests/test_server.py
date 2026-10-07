@@ -78,7 +78,7 @@ def test_drives_a_private_display(tmp_path):
                 shot = await session.call_tool("screenshot", {})
                 assert "1280x800" in shot.content[0].text
                 assert shot.content[1].type == "image"
-                assert shot.content[1].mime_type == "image/png"
+                assert shot.content[1].mime_type in ("image/png", "image/jpeg")
 
                 await session.call_tool(
                     "launch", {"command": "xterm -geometry 80x24+0+0", "screenshot": False}

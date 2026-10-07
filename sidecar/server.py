@@ -60,6 +60,9 @@ mcp = MCPServer("sidecar-desktop", instructions=INSTRUCTIONS)
 SETTLE_SECONDS = float(os.environ.get("SIDECAR_SETTLE_SECONDS", "0.5"))
 TYPE_DELAY_MS = int(os.environ.get("SIDECAR_TYPE_DELAY_MS", "12"))
 KEY_DELAY_MS = 40
+# Screenshots wider than this are downscaled (keeps tokens/latency down). Claude
+# still reads small UI text fine at ~1366px. Needs Pillow; without it, full PNG.
+SHOT_MAX_WIDTH = int(os.environ.get("SIDECAR_MAX_WIDTH", "1366"))
 
 # Populated in main(); the tools read these module globals.
 _backend: Backend | None = None
@@ -89,11 +92,30 @@ def _check_point(x: int, y: int) -> None:
         raise DesktopError(f"({x}, {y}) is off-screen; the screen is {w}x{h}")
 
 
+def _snapshot() -> Image:
+    """Capture the screen, downscaling to a compact JPEG when Pillow is available."""
+    png = backend().capture_png()
+    try:
+        import io
+
+        from PIL import Image as PILImage
+
+        img = PILImage.open(io.BytesIO(png))
+        if img.width > SHOT_MAX_WIDTH:
+            scale = SHOT_MAX_WIDTH / img.width
+            img = img.resize((SHOT_MAX_WIDTH, round(img.height * scale)), PILImage.LANCZOS)
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", quality=72)
+        return Image(data=buf.getvalue(), format="jpeg")
+    except Exception:
+        return Image(data=png, format="png")  # Pillow missing or decode failed
+
+
 def _result(message: str, screenshot: bool) -> str | list:
     if not screenshot:
         return message
     time.sleep(SETTLE_SECONDS)
-    return [message, Image(data=backend().capture_png(), format="png")]
+    return [message, _snapshot()]
 
 
 @mcp.tool(structured_output=False)
@@ -109,7 +131,7 @@ def about() -> str:
 def screenshot() -> list:
     """Look at the desktop. Returns a PNG of the whole screen."""
     w, h = backend().screen_size()
-    return [f"Screen is {w}x{h}.", Image(data=backend().capture_png(), format="png")]
+    return [f"Screen is {w}x{h}.", _snapshot()]
 
 
 @mcp.tool(structured_output=False)
