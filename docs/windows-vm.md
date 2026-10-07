@@ -73,21 +73,21 @@ Forwarding: `127.0.0.1:8765 → 8765`).
 
 That's the entire setup. From now on it's just the two steps below.
 
-## 5. Everyday use
+## 5. Everyday use — just open Claude Code
 
-1. **Start the VM.** The desktop server comes up on its own.
-2. **Use Claude on your host** — ask it to use the sidecar desktop, e.g. *"Open
-   Edge in your sidecar desktop and sign in to my email."* It drives the **VM**,
-   not your PC. Snap the VirtualBox window to half your screen (Win+← / Win+→) to
-   watch and take over when needed (e.g. a login or 2FA, after which Claude
-   continues in that signed-in session).
+Once the setup above is done, the **plugin handles everything**: when you start a
+Claude Code session, the plugin boots the VM (if it isn't already running) and
+connects to it. You don't start the VM, run any script, or keep a window open.
 
-Nothing but the plugin is needed on Claude's side. Your real mouse, keyboard and
-screen stay entirely yours the whole time.
+Just ask Claude to use the sidecar desktop, e.g. *"Open Edge in your sidecar
+desktop and sign in to my email."* It drives the **VM**, not your PC. Snap the
+VirtualBox window to half your screen (Win+← / Win+→) to watch and take over when
+needed (e.g. a login or 2FA, after which Claude continues in that signed-in
+session).
 
-**Want to skip even starting the VM?** Put a shortcut to the VM in your host's
-`shell:startup` so it boots with Windows, or (advanced) use VirtualBox's
-autostart service.
+Your real mouse, keyboard and screen stay entirely yours the whole time. (The
+auto-boot comes from a plugin hook that only acts when `vm-host.bat` has saved
+your VM name; it does nothing on machines without the VM.)
 
 ## Notes
 

@@ -26,6 +26,11 @@ REM Works whether the VM is running or stopped; replaces any existing rule of th
  (echo Could not add the port-forward. Make sure the VM uses a NAT adapter. & pause & exit /b 1)
 
 echo.
+echo ==^> Saving the VM name so the plugin can auto-boot it each session
+if not exist "%USERPROFILE%\.sidecar-desktop" mkdir "%USERPROFILE%\.sidecar-desktop"
+> "%USERPROFILE%\.sidecar-desktop\vmname" echo %VMNAME%
+
+echo.
 echo ==^> Connecting Claude Code to the VM desktop
 claude mcp remove sidecar-desktop >nul 2>&1
 claude mcp add --transport http --scope user sidecar-desktop http://127.0.0.1:8765/mcp
