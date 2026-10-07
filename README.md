@@ -18,11 +18,16 @@ It runs in one of two modes you switch between per task:
 
 ### Windows
 
-1. **Isolated** (recommended): install [Docker
-   Desktop](https://www.docker.com/products/docker-desktop/), start it, then
-   double-click **`setup\start.bat`**. Watch at
-   <http://localhost:6080/vnc.html> and snap it to half your screen.
-2. **Native** (use your real apps/windows): double-click **`setup\native.bat`**.
+- **Own Windows desktop (recommended for real Windows apps):** run Claude's
+  sidecar inside a local VM — its own cursor, your Windows apps, zero conflict
+  with your real mouse/keyboard. Works on Windows Home. Full walkthrough:
+  **[docs/windows-vm.md](docs/windows-vm.md)** (host/guest scripts in `setup/`).
+- **Isolated Linux desktop (simplest):** install [Docker
+  Desktop](https://www.docker.com/products/docker-desktop/), start it, then
+  double-click **`setup\start.bat`**. Watch at <http://localhost:6080/vnc.html>
+  and snap it to half your screen. Runs Linux apps, not your Windows programs.
+- **Native, on your real desktop:** double-click **`setup\native.bat`**. Uses
+  your actual open windows, but shares your one cursor while it acts.
 
 ### macOS
 
