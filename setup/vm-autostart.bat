@@ -15,16 +15,14 @@ call .venv\Scripts\activate.bat
 python -m pip install --quiet --upgrade pip
 python -m pip install --quiet -r requirements.txt pyautogui || (echo Install failed. & pause & exit /b 1)
 
-set "PYW=%CD%\.venv\Scripts\pythonw.exe"
-set "SRV=%CD%\sidecar\server.py"
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 set "LAUNCHER=%STARTUP%\sidecar-desktop.vbs"
 
 echo.
 echo ==^> Installing autostart launcher
-REM A tiny .vbs that runs the server with pythonw (no console window), hidden.
+REM A tiny .vbs that runs start-sidecar.cmd hidden (no console window).
 > "%LAUNCHER%" echo Set s = CreateObject("WScript.Shell")
->> "%LAUNCHER%" echo s.Run """%PYW%"" ""%SRV%"" --native --transport http --host 0.0.0.0 --port 8765 --file-root ""%USERPROFILE%""", 0, False
+>> "%LAUNCHER%" echo s.Run "cmd /c ""%CD%\start-sidecar.cmd""", 0, False
 
 if not exist "%LAUNCHER%" (echo Could not write the autostart launcher. & pause & exit /b 1)
 

@@ -1,0 +1,78 @@
+# Auto-provisions a Windows VM with the sidecar desktop already installed and
+# serving. Driven by setup/auto-setup.ps1 (which installs VirtualBox + Vagrant
+# first). `vagrant up` here downloads a ready-made Windows box, boots it, forwards
+# the sidecar port to the host, and runs the provisioner below to install Python,
+# the sidecar server, and an autostart launcher inside the VM.
+#
+# Change WINDOWS_BOX to a different public Windows box if this one is unavailable
+# (see https://portal.cloud.hashicorp.com/vagrant/discover?query=windows).
+
+WINDOWS_BOX   = "gusztavvargadr/windows-11"   # community eval Windows 11 (re-arms)
+REPO_ZIP_URL  = "https://github.com/grwarnkr-png/blah/archive/refs/heads/claude/zen-wozniak-tc1a7a.zip"
+PYTHON_URL    = "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe"
+VM_MEMORY_MB  = 4096
+VM_CPUS       = 2
+
+Vagrant.configure("2") do |config|
+  config.vm.box = WINDOWS_BOX
+  config.vm.communicator = "winrm"
+  config.vm.boot_timeout = 1800            # first boot of a Windows box is slow
+  config.winrm.timeout   = 1800
+
+  config.vm.guest = :windows
+  config.vm.network "forwarded_port", guest: 8765, host: 8765,
+                    host_ip: "127.0.0.1", id: "sidecar", auto_correct: true
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui    = true                       # show the window so you can watch
+    vb.memory = VM_MEMORY_MB
+    vb.cpus   = VM_CPUS
+    vb.customize ["modifyvm", :id, "--clipboard-mode", "bidirectional"]
+  end
+
+  # One-time provisioning inside the Windows guest.
+  config.vm.provision "shell", privileged: true, inline: <<-PS
+    $ErrorActionPreference = "Stop"
+    $root = "C:\\sidecar-desktop"
+
+    Write-Host "[sidecar] downloading project..."
+    New-Item -ItemType Directory -Force -Path "C:\\sidecar-tmp" | Out-Null
+    $zip = "C:\\sidecar-tmp\\repo.zip"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri "#{REPO_ZIP_URL}" -OutFile $zip
+    if (Test-Path $root) { Remove-Item -Recurse -Force $root }
+    Expand-Archive -Path $zip -DestinationPath "C:\\sidecar-tmp" -Force
+    $extracted = Get-ChildItem "C:\\sidecar-tmp" -Directory | Where-Object { $_.Name -like "blah-*" } | Select-Object -First 1
+    Move-Item $extracted.FullName $root
+
+    Write-Host "[sidecar] installing Python..."
+    $py = "C:\\sidecar-tmp\\python.exe"
+    if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+      Invoke-WebRequest -Uri "#{PYTHON_URL}" -OutFile $py
+      Start-Process -Wait -FilePath $py -ArgumentList "/quiet InstallAllUsers=1 PrependPath=1 Include_launcher=1"
+      $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User")
+    }
+
+    Write-Host "[sidecar] installing the desktop server..."
+    Push-Location $root
+    python -m venv .venv
+    & ".venv\\Scripts\\python.exe" -m pip install --quiet --upgrade pip
+    & ".venv\\Scripts\\python.exe" -m pip install --quiet -r requirements.txt pyautogui
+    Pop-Location
+
+    Write-Host "[sidecar] configuring autostart..."
+    # Autostart for whichever user logs in (the box auto-logs-in 'vagrant').
+    $startup = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
+    $vbs = Join-Path $startup "sidecar-desktop.vbs"
+    $cmd = "$root\\start-sidecar.cmd"
+    $line1 = 'Set s = CreateObject("WScript.Shell")'
+    # Produces:  s.Run "cmd /c ""C:\sidecar-desktop\start-sidecar.cmd""", 0, False
+    $line2 = "s.Run `"cmd /c `"`"$cmd`"`"`", 0, False"
+    Set-Content -Path $vbs -Value @($line1, $line2) -Encoding ASCII
+
+    Write-Host "[sidecar] starting it now..."
+    Start-Process "wscript.exe" -ArgumentList "`"$vbs`""
+
+    Write-Host "[sidecar] done. The VM will serve the sidecar desktop on port 8765."
+  PS
+end

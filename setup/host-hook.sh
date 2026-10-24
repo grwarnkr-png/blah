@@ -28,7 +28,8 @@ fi
 "$VBM" modifyvm "$VM" --natpf1 "sidecar,tcp,127.0.0.1,8765,,8765" >/dev/null 2>&1
 
 # Boot the VM (with its window, so you can watch) if it isn't already running.
-if ! "$VBM" list runningvms 2>/dev/null | grep -q "\"$VM\""; then
+# $VM may be a VM name or a VirtualBox UUID (Vagrant saves a UUID); match either.
+if ! "$VBM" list runningvms 2>/dev/null | grep -qF "$VM"; then
   "$VBM" startvm "$VM" --type separate >/dev/null 2>&1 &
 fi
 

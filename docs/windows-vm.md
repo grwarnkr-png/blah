@@ -15,7 +15,29 @@ happens inside a virtual machine you watch in a window. Works on Windows Home
  └────────────────────────┘             └──────────────────────────────┘
 ```
 
-You do this once. After that, starting the VM + one script is all it takes.
+You do this once. After that, just open Claude Code.
+
+## Easiest: one-command automatic setup
+
+If you'd rather not do any of the manual steps below, run the auto-setup script.
+It installs VirtualBox + Vagrant, builds a Windows VM with the sidecar already
+installed and serving, saves the VM so the plugin auto-boots it, and connects
+Claude Code — all in one go.
+
+1. Download this project (ZIP from GitHub, or `git clone`).
+2. In the project's `setup` folder, right-click **`auto-setup.ps1`** ▸ **Run with
+   PowerShell** (or in a terminal: `powershell -ExecutionPolicy Bypass -File setup\auto-setup.ps1`).
+3. Wait. The first run downloads a multi-GB Windows image and sets everything
+   up; later there's nothing to run.
+
+> Heads-up: the Windows image is a community evaluation build (it re-arms its
+> trial automatically). If the download source is ever unavailable, open
+> `setup/Vagrantfile` and change `WINDOWS_BOX` to another public Windows box.
+> This script is new and can't be tested without a real Windows machine — if a
+> step fails, copy the error and we'll fix it.
+
+Once it finishes, skip to [§5 Everyday use](#5-everyday-use--just-open-claude-code).
+The manual steps below are only if you prefer to set the VM up yourself.
 
 ## 1. Install VirtualBox (free)
 
