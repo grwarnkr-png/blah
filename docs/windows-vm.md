@@ -25,15 +25,25 @@ installed and serving, saves the VM so the plugin auto-boots it, and connects
 Claude Code — all in one go.
 
 1. Download this project (ZIP from GitHub, or `git clone`).
-2. In the project's `setup` folder, right-click **`auto-setup.ps1`** ▸ **Run with
-   PowerShell** (or in a terminal: `powershell -ExecutionPolicy Bypass -File setup\auto-setup.ps1`).
-3. Wait. The first run downloads a multi-GB Windows image and sets everything
-   up; later there's nothing to run.
+2. In the project's `setup` folder, **double-click `install-windows.cmd`**. Click
+   **Yes** at the admin prompt. That's it.
+3. Wait. The first run checks your PC, installs what's needed, downloads a
+   multi-GB Windows image, and sets everything up; later there's nothing to run.
+
+What it does for you, so it "just works":
+
+- **Preflight check** — confirms 64-bit Windows 10/11, enough RAM and free disk,
+  and that CPU virtualization is enabled, with a plain-English fix if something's
+  off (it stops before the big download rather than failing halfway).
+- **Reuses what you already have** — if VirtualBox and/or Vagrant are already
+  installed (even if not on your PATH), it detects and uses them instead of
+  reinstalling; it only installs what's missing.
+- **Keeps the window open** and prints exactly what to do if a step needs you.
 
 > Heads-up: the Windows image is a community evaluation build (it re-arms its
 > trial automatically). If the download source is ever unavailable, open
 > `setup/Vagrantfile` and change `WINDOWS_BOX` to another public Windows box.
-> This script is new and can't be tested without a real Windows machine — if a
+> This installer is new and can't be tested without a real Windows machine — if a
 > step fails, copy the error and we'll fix it.
 
 Once it finishes, skip to [§5 Everyday use](#5-everyday-use--just-open-claude-code).

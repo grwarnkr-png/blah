@@ -18,13 +18,13 @@ It runs in one of two modes you switch between per task:
 
 ### Windows
 
-- **Own Windows desktop with your real apps (one-command auto-setup):** run
-  `setup\auto-setup.ps1`. It installs VirtualBox + Vagrant, auto-builds a Windows
-  VM with the sidecar already running, and connects Claude — its own cursor, your
-  Windows apps, zero conflict with your real mouse/keyboard. Works on Windows
-  Home. First run downloads a multi-GB Windows image; after that, just open
-  Claude Code (the plugin auto-boots the VM). Details + manual option:
-  **[docs/windows-vm.md](docs/windows-vm.md)**.
+- **Own Windows desktop with your real apps (double-click setup):** double-click
+  **`setup\install-windows.cmd`**. It checks your PC is ready, installs *or
+  reuses* VirtualBox + Vagrant, auto-builds a Windows VM with the sidecar already
+  running, and connects Claude — its own cursor, your Windows apps, zero conflict
+  with your real mouse/keyboard. Works on Windows Home. First run downloads a
+  multi-GB Windows image; after that, just open Claude Code (the plugin auto-boots
+  the VM). Details + manual option: **[docs/windows-vm.md](docs/windows-vm.md)**.
 - **Isolated Linux desktop (simplest):** install [Docker
   Desktop](https://www.docker.com/products/docker-desktop/), start it, then
   double-click **`setup\start.bat`**. Watch at <http://localhost:6080/vnc.html>
