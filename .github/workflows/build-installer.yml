@@ -1,0 +1,52 @@
+name: Build Windows installer
+
+# Compiles installer/sidecar.iss into SidecarDesktopSetup.exe and publishes it
+# as a downloadable file on the repo's "latest" prerelease, so users just grab
+# one .exe from the Releases page.
+
+on:
+  push:
+    branches: [ "claude/zen-wozniak-tc1a7a" ]
+    paths:
+      - "installer/**"
+      - "setup/**"
+      - "sidecar/**"
+      - "requirements.txt"
+      - "start-sidecar.cmd"
+      - ".github/workflows/build-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\sidecar.iss"
+          if (-not (Test-Path "installer\output\SidecarDesktopSetup.exe")) {
+            throw "Installer was not produced."
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SidecarDesktopSetup
+          path: installer/output/SidecarDesktopSetup.exe
+
+      - name: Publish to "latest" release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest installer
+          prerelease: true
+          files: installer/output/SidecarDesktopSetup.exe
