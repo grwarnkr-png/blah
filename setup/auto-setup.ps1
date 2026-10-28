@@ -24,12 +24,21 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
   Write-Host "Asking for administrator rights (needed to install VirtualBox)..."
   try {
     Start-Process powershell -Verb RunAs -ArgumentList @(
-      "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+      "-NoExit", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
   } catch {
     Write-Warning "Could not elevate. Right-click install-windows.cmd and choose 'Run as administrator'."
   }
   exit
 }
+
+# Give the (elevated) window a sane, readable size and title — some setups open
+# it tiny/empty otherwise.
+try {
+  $raw = $Host.UI.RawUI
+  $raw.WindowTitle = "Sidecar Desktop Setup  -  keep this window open"
+  $buf = $raw.BufferSize; $buf.Width = 120; $buf.Height = 3000; $raw.BufferSize = $buf
+  $win = $raw.WindowSize; $win.Width = 110; $win.Height = 38; $raw.WindowSize = $win
+} catch {}
 
 $SetupDir = Split-Path -Parent $PSCommandPath
 function Have($name) { [bool](Get-Command $name -ErrorAction SilentlyContinue) }
