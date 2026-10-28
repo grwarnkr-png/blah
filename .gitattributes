@@ -1,0 +1,8 @@
+# Windows scripts must have CRLF line endings or they misbehave on double-click,
+# including in GitHub ZIP downloads. Unix scripts stay LF.
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+*.vbs  text eol=crlf
+*.sh   text eol=lf
+*.py   text eol=lf
