@@ -110,18 +110,24 @@ try {
     $warn += "$freeGB GB free on $($env:SystemDrive); 45 GB+ is more comfortable."
   }
 
-  # --- CPU virtualization (VT-x/AMD-V) ----------------------------------------
-  $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
-  if ($cpu.VirtualizationFirmwareEnabled -eq $false) {
-    $fail += "CPU virtualization is OFF in your BIOS/UEFI. Enable 'Intel VT-x' / 'AMD-V' " +
-             "(often under CPU or Security settings), save, reboot, then run this again."
+  # --- Hyper-V / WSL2 / Core Isolation present? -------------------------------
+  $hyper = ((Get-CimInstance Win32_ComputerSystem).HypervisorPresent -eq $true)
+  if ($hyper) {
+    $warn += "A Windows hypervisor (Hyper-V, WSL2, or Core Isolation / Memory Integrity) is " +
+             "active, so VirtualBox runs through it and can be slower. For best speed, turn off " +
+             "'Core Isolation > Memory Integrity' (Windows Security > Device security) and, if you " +
+             "don't use them, Hyper-V / Virtual Machine Platform / WSL, then reboot. Optional."
   }
 
-  # --- Hyper-V / WSL2 / Core Isolation grabbing the hypervisor ----------------
-  if ((Get-CimInstance Win32_ComputerSystem).HypervisorPresent -eq $true) {
-    $warn += "A Windows hypervisor (Hyper-V, WSL2, or Core Isolation / Memory Integrity) is " +
-             "active. VirtualBox still runs but can be slow. If the VM is unusably slow, turn off " +
-             "'Core Isolation > Memory Integrity' in Windows Security and reboot."
+  # --- CPU virtualization (VT-x/AMD-V) ----------------------------------------
+  # When a hypervisor is already running, virtualization must be on even if the
+  # firmware flag reads false (Windows hides it), so only fail when there's NO
+  # hypervisor AND the flag is explicitly false.
+  $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+  if (-not $hyper -and $cpu.VirtualizationFirmwareEnabled -eq $false) {
+    $fail += "CPU virtualization appears OFF in your BIOS/UEFI. Enable 'Intel VT-x' / 'AMD-V' / " +
+             "'SVM' (often under CPU or Security settings), save, reboot, then run again. " +
+             "Check: Task Manager > Performance > CPU shows 'Virtualization: Enabled' when it's on."
   }
 
   # --- winget (only needed if something still has to be installed) ------------
