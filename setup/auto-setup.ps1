@@ -102,14 +102,9 @@ try {
     $warn += "$ramGB GB RAM is a bit low; the VM uses 4 GB, so things may feel tight."
   }
 
-  # --- Free disk on the system drive -----------------------------------------
+  # --- Free disk (reported here; the real check is on the drive you pick) -----
   $sys = $env:SystemDrive.TrimEnd(":")
   $freeGB = [math]::Round((Get-PSDrive -Name $sys).Free / 1GB, 1)
-  if ($freeGB -lt 30) {
-    $fail += "Only $freeGB GB free on $($env:SystemDrive). Need ~30 GB for the Windows image + VM."
-  } elseif ($freeGB -lt 45) {
-    $warn += "$freeGB GB free on $($env:SystemDrive); 45 GB+ is more comfortable."
-  }
 
   # --- Hyper-V / WSL2 / Core Isolation present? -------------------------------
   $hyper = ((Get-CimInstance Win32_ComputerSystem).HypervisorPresent -eq $true)
@@ -152,6 +147,36 @@ if ($fail.Count -gt 0) {
 }
 Write-Host "   Looks good.`n"
 
+# ---- choose which drive holds the VM (box cache + VM disk) --------------------
+# Vagrant and VirtualBox default to C:; let the user put the big files elsewhere.
+Write-Host "==> Where should Claude's VM live? (needs ~35 GB; this is the big one)"
+$drives = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | Sort-Object FreeSpace -Descending)
+foreach ($d in $drives) {
+  Write-Host ("     {0}  {1} GB free" -f $d.DeviceID, [math]::Round($d.FreeSpace / 1GB, 1))
+}
+if ($env:SIDECAR_DRIVE) {
+  $default = ($env:SIDECAR_DRIVE.Trim().Substring(0,1).ToUpper() + ":")
+} else {
+  $default = $drives[0].DeviceID
+}
+$ans = Read-Host "   Drive letter for the VM [default $default]"
+if ([string]::IsNullOrWhiteSpace($ans)) { $ans = $default }
+$drive = ($ans.Trim().Substring(0,1).ToUpper() + ":")
+$pick = $drives | Where-Object { $_.DeviceID -eq $drive } | Select-Object -First 1
+if (-not $pick) {
+  Write-Host "`n   Drive $drive not found - pick one of the letters listed above and re-run." -ForegroundColor Red
+  Pause-Exit 1
+}
+$pickFree = [math]::Round($pick.FreeSpace / 1GB, 1)
+if ($pickFree -lt 32) {
+  Write-Host "`n   Only $pickFree GB free on $drive - need ~35 GB. Free space or pick another drive." -ForegroundColor Red
+  Pause-Exit 1
+}
+$DataRoot = "$drive\SidecarDesktop"
+$env:VAGRANT_HOME = "$DataRoot\vagrant.d"
+New-Item -ItemType Directory -Force -Path $env:VAGRANT_HOME | Out-Null
+Write-Host "   Using $drive ($pickFree GB free). Box + VM will live in $DataRoot.`n"
+
 # ---- install VirtualBox + Vagrant --------------------------------------------
 function Ensure-WingetPackage($id, $exeToCheck, $nice) {
   if (Have $exeToCheck) { Write-Host "   $nice already installed."; return }
@@ -183,6 +208,37 @@ try {
   Write-Host "    The first run downloads a multi-GB Windows image - leave it running."
   Push-Location $SetupDir
   try {
+    # Put the VM's disk on the chosen drive.
+    try { & VBoxManage setproperty machinefolder "$DataRoot\VMs" 2>$null } catch {}
+
+    # Clear a half-built VM from a previous attempt so it rebuilds cleanly (and
+    # frees the space it was holding, usually on C:).
+    $oldId = Join-Path $SetupDir ".vagrant\machines\default\virtualbox\id"
+    if (Test-Path $oldId) {
+      Write-Host "   cleaning up a previous half-built VM..."
+      $prev = (Get-Content $oldId -Raw).Trim()
+      try { & VBoxManage controlvm $prev poweroff 2>$null } catch {}
+      try { & VBoxManage unregistervm $prev --delete 2>$null } catch {}
+      try { Remove-Item (Join-Path $SetupDir ".vagrant") -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
+
+    # Reuse an already-downloaded box: move it from the default C: cache to the
+    # chosen drive so it isn't downloaded again (and C: gets the space back).
+    $oldBoxRoot = Join-Path $env:USERPROFILE ".vagrant.d\boxes"
+    $newBoxRoot = "$env:VAGRANT_HOME\boxes"
+    if ((Test-Path $oldBoxRoot) -and ((Resolve-Path $oldBoxRoot).Path -ne $newBoxRoot)) {
+      try {
+        New-Item -ItemType Directory -Force -Path $newBoxRoot | Out-Null
+        foreach ($b in Get-ChildItem $oldBoxRoot -ErrorAction SilentlyContinue) {
+          $dest = Join-Path $newBoxRoot $b.Name
+          if (-not (Test-Path $dest)) {
+            Write-Host "   moving the downloaded box to $drive (no re-download)..."
+            Move-Item $b.FullName $dest -Force
+          }
+        }
+      } catch {}
+    }
+
     $maxTries = 4
     for ($try = 1; $try -le $maxTries; $try++) {
       vagrant up
