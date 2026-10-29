@@ -183,9 +183,21 @@ try {
   Write-Host "    The first run downloads a multi-GB Windows image - leave it running."
   Push-Location $SetupDir
   try {
-    vagrant up
-    if ($LASTEXITCODE -ne 0) {
-      throw "The VM build didn't finish cleanly (vagrant exit $LASTEXITCODE). Re-running usually continues where it left off; if it keeps failing, copy the messages above."
+    $maxTries = 4
+    for ($try = 1; $try -le $maxTries; $try++) {
+      vagrant up
+      if ($LASTEXITCODE -eq 0) { break }
+      if ($try -lt $maxTries) {
+        Write-Host ("   that step failed (usually just an interrupted download) - " +
+                    "retrying {0}/{1}; it resumes where it left off..." -f $try, $maxTries) `
+                    -ForegroundColor Yellow
+        Start-Sleep -Seconds 8
+      } else {
+        throw "The VM build didn't finish after $maxTries tries (last vagrant exit $LASTEXITCODE). " +
+              "It resumes where it left off, so running the installer again often works. If it keeps " +
+              "failing on the ~9 GB download, your connection is dropping the large file - try again " +
+              "on a more stable or wired network, and make sure you have ~30 GB free."
+      }
     }
   } finally {
     Pop-Location
