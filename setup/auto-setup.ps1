@@ -63,7 +63,8 @@ function Resolve-ExistingTools {
     }
   }
   if (-not (Have "vagrant")) {
-    $cands = @("$env:ProgramFiles\Vagrant\bin", "${env:ProgramFiles(x86)}\Vagrant\bin",
+    $cands = @("$env:SystemDrive\HashiCorp\Vagrant\bin", "C:\HashiCorp\Vagrant\bin",
+               "$env:ProgramFiles\Vagrant\bin", "${env:ProgramFiles(x86)}\Vagrant\bin",
                "$env:ChocolateyInstall\bin")
     foreach ($d in $cands) {
       if ($d -and (Test-Path (Join-Path $d "vagrant.exe"))) { Add-ToPath $d; break }
@@ -166,9 +167,11 @@ try {
   Ensure-WingetPackage "Oracle.VirtualBox" "VBoxManage" "VirtualBox"
   Ensure-WingetPackage "Hashicorp.Vagrant" "vagrant" "Vagrant"
 
-  # Refresh PATH for this process so the new tools are found.
+  # Refresh PATH for this process so the new tools are found, and re-probe the
+  # known install locations (Vagrant's MSI PATH update can lag one process).
   $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
               [Environment]::GetEnvironmentVariable("Path","User")
+  Resolve-ExistingTools
 
   if (-not (Have "vagrant")) {
     Write-Host "`nVagrant was installed but isn't on PATH in this window yet." -ForegroundColor Yellow
